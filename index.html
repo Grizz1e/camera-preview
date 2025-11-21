@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Minimal HD Camera Preview</title>
+
+<style>
+    body {
+        margin: 0;
+        padding: 24px;
+        font-family: system-ui, sans-serif;
+        background: #f8f8f8;
+        color: #333;
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
+        align-items: center;
+    }
+
+    .panel {
+        background: white;
+        padding: 18px 24px;
+        border-radius: 12px;
+        box-shadow: 0 4px 16px rgba(0,0,0,0.08);
+        width: 100%;
+        max-width: 360px;
+    }
+
+    label {
+        font-size: 13px;
+        margin-bottom: 6px;
+        display: block;
+    }
+
+    select {
+        width: 100%;
+        padding: 8px 12px;
+        border-radius: 8px;
+        background: #f0f0f0;
+        border: none;
+        font-size: 14px;
+    }
+
+    video {
+        width: 100%;
+        max-width: 900px;
+        aspect-ratio: 16 / 9;
+        object-fit: cover;
+        background: black;
+        border-radius: 12px;
+        cursor: pointer;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+    }
+
+    video:fullscreen {
+        width: 100vw;
+        height: 100vh;
+        border-radius: 0;
+        object-fit: cover;
+    }
+
+    .hint {
+        font-size: 12px;
+        opacity: 0.6;
+        margin-top: 6px;
+        text-align: center;
+    }
+</style>
+</head>
+
+<body>
+
+<div class="panel">
+    <label>Camera</label>
+    <select id="cameraSelect"></select>
+
+    <label style="margin-top:12px;">Microphone</label>
+    <select id="micSelect"></select>
+</div>
+
+<video id="video" autoplay playsinline></video>
+<audio id="audio" autoplay></audio>
+
+<div class="hint">Tap video to enter fullscreen</div>
+
+<script>
+const cameraSelect = document.getElementById("cameraSelect");
+const micSelect = document.getElementById("micSelect");
+const videoElement = document.getElementById("video");
+const audioElement = document.getElementById("audio");
+
+async function listDevices() {
+    const devices = await navigator.mediaDevices.enumerateDevices();
+    cameraSelect.innerHTML = "";
+    micSelect.innerHTML = "";
+
+    devices.forEach(device => {
+        const option = document.createElement("option");
+        option.value = device.deviceId;
+        option.text = device.label || device.kind;
+
+        if (device.kind === "videoinput") cameraSelect.appendChild(option);
+        if (device.kind === "audioinput") micSelect.appendChild(option);
+    });
+}
+
+async function startStream() {
+    const stream = await navigator.mediaDevices.getUserMedia({
+        video: {
+            deviceId: cameraSelect.value ? { exact: cameraSelect.value } : undefined,
+            width: { ideal: 1920 },
+            height: { ideal: 1080 },
+            frameRate: { ideal: 60 }
+        },
+        audio: {
+            deviceId: micSelect.value ? { exact: micSelect.value } : undefined,
+            sampleRate: { ideal: 48000 },
+            sampleSize: { ideal: 24 },
+            channelCount: { ideal: 2 },
+            echoCancellation: false,
+            noiseSuppression: false,
+            autoGainControl: false
+        }
+    });
+
+    videoElement.srcObject = stream;
+
+    // separate audio output
+    const audioStream = new MediaStream(stream.getAudioTracks());
+    audioElement.srcObject = audioStream;
+}
+
+cameraSelect.addEventListener("change", startStream);
+micSelect.addEventListener("change", startStream);
+
+videoElement.addEventListener("click", () => {
+    if (videoElement.requestFullscreen) videoElement.requestFullscreen();
+});
+
+navigator.mediaDevices.getUserMedia({ video: true, audio: true })
+    .then(() => listDevices().then(startStream))
+    .catch(err => console.error(err));
+</script>
+
+</body>
+</html>
