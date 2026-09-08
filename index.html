@@ -3,14 +3,12 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
 <!-- Primary Meta Tags -->
 <title>Camera & Microphone Test | HDMI Capture Viewer | preview.grizz1e.com</title>
 <meta name="description" content="Preview your webcam, microphone, or HDMI capture card in full HD directly in your browser. No compression, no data stored, instant device testing. Perfect for content creators, streamers, and anyone verifying video & audio quality.">
-
 <meta name="keywords" content="webcam test, camera preview, microphone test, mic check online, HDMI capture viewer, capture card preview, FHD webcam tester, streaming setup test, audio quality checker, video input viewer">
-
 <meta name="author" content="preview.grizz1e.com">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
 
 <!-- Open Graph / Facebook -->
 <meta property="og:title" content="Camera & Microphone Test | HDMI Capture Viewer">
@@ -28,7 +26,7 @@
 <!-- Canonical URL -->
 <link rel="canonical" href="https://preview.grizz1e.com">
 
-<!-- Structured Data: Tool / Software Application -->
+<!-- Structured Data -->
 <script type="application/ld+json">
 {
     "@context": "https://schema.org",
@@ -38,160 +36,520 @@
     "applicationCategory": "Multimedia",
     "operatingSystem": "Any",
     "description": "Test your webcam, microphone, or HDMI capture card in full HD directly in your browser. No compression, no uploads, minimal UI.",
-    "offers": {
-        "@type": "Offer",
-        "price": "0",
-        "priceCurrency": "USD"
-    },
+    "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
     "featureList": [
-        "Full HD webcam preview",
+        "Adjustable resolution webcam preview",
         "Microphone quality tester",
         "HDMI capture card viewer",
         "Low-latency device monitoring",
         "No server upload—privacy-focused",
-        "Minimal clean interface"
+        "Remembers your last selected devices"
     ]
 }
 </script>
 
-<title>Minimal HD Camera Preview</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;700;800&display=swap" rel="stylesheet">
 
 <style>
-    body {
-        margin: 0;
-        padding: 24px;
-        font-family: system-ui, sans-serif;
-        background: #f8f8f8;
-        color: #333;
-        display: flex;
-        flex-direction: column;
-        gap: 20px;
-        align-items: center;
+    :root {
+        --ink: #1a1a1a;
+        --cream: #f7f4ec;
+        --orange: #f5a94e;
+        --blue: #6f9cee;
+        --card: #ffffff;
+        --muted: #6b6b6b;
+        --select-bg: #f0f0ef;
+        --shadow-offset: 6px;
+        --border-w: 3px;
     }
 
-    .panel {
-        background: white;
-        padding: 18px 24px;
+    * { box-sizing: border-box; }
+
+    body {
+        margin: 0;
+        min-height: 100vh;
+        font-family: 'Baloo 2', system-ui, sans-serif;
+        color: var(--ink);
+        background-color: var(--cream);
+        background-image: radial-gradient(circle, rgba(0,0,0,0.08) 1px, transparent 1px);
+        background-size: 18px 18px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding: 28px 20px 40px;
+        gap: 24px;
+    }
+
+    .wrap { width: 100%; max-width: 760px; display: flex; flex-direction: column; gap: 22px; }
+
+    .banner {
+        background: var(--orange);
+        border: var(--border-w) solid var(--ink);
         border-radius: 12px;
-        box-shadow: 0 4px 16px rgba(0,0,0,0.08);
-        width: 100%;
-        max-width: 360px;
+        box-shadow: var(--shadow-offset) var(--shadow-offset) 0 var(--ink);
+        transform: rotate(-0.6deg);
+        padding: 22px 28px;
+        text-align: center;
+    }
+
+    .banner h1 {
+        margin: 0;
+        font-size: clamp(24px, 5vw, 34px);
+        font-weight: 800;
+        letter-spacing: 0.5px;
+    }
+
+    .banner p {
+        margin: 6px 0 0;
+        font-weight: 500;
+        font-size: 14px;
+        opacity: 0.85;
+    }
+
+    .card {
+        background: var(--card);
+        border: var(--border-w) solid var(--ink);
+        border-radius: 12px;
+        box-shadow: var(--shadow-offset) var(--shadow-offset) 0 var(--ink);
+        padding: 20px 22px;
+    }
+
+    .card h2 {
+        margin: 0 0 16px;
+        font-size: 18px;
+        font-weight: 700;
+        text-decoration: underline;
+        text-decoration-style: dotted;
+        text-decoration-color: var(--blue);
+        text-underline-offset: 4px;
+        display: inline-block;
+    }
+
+    .field { margin-bottom: 14px; }
+    .field:last-child { margin-bottom: 0; }
+
+    .field-row {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 14px;
     }
 
     label {
-        font-size: 13px;
-        margin-bottom: 6px;
         display: block;
+        font-size: 13px;
+        font-weight: 700;
+        margin-bottom: 6px;
+        color: var(--muted);
     }
 
     select {
         width: 100%;
-        padding: 8px 12px;
+        padding: 10px 12px;
         border-radius: 8px;
-        background: #f0f0f0;
-        border: none;
+        background: var(--select-bg);
+        border: 2px solid transparent;
+        font-family: inherit;
         font-size: 14px;
+        font-weight: 600;
+        color: var(--ink);
+        cursor: pointer;
+        appearance: none;
+        background-image: linear-gradient(45deg, transparent 50%, var(--ink) 50%), linear-gradient(135deg, var(--ink) 50%, transparent 50%);
+        background-position: calc(100% - 18px) center, calc(100% - 13px) center;
+        background-size: 5px 5px, 5px 5px;
+        background-repeat: no-repeat;
+    }
+
+    select:focus-visible {
+        outline: none;
+        border-color: var(--ink);
+    }
+
+    .video-shell {
+        position: relative;
+        width: 100%;
     }
 
     video {
         width: 100%;
-        max-width: 900px;
         aspect-ratio: 16 / 9;
         object-fit: cover;
-        background: black;
+        background: #0c0c0c;
         border-radius: 12px;
+        border: var(--border-w) solid var(--ink);
+        box-shadow: var(--shadow-offset) var(--shadow-offset) 0 var(--ink);
         cursor: pointer;
-        box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+        display: block;
     }
 
-    video:fullscreen {
-        width: 100vw;
-        height: 100vh;
-        border-radius: 0;
-        object-fit: cover;
+    video:fullscreen { width: 100vw; height: 100vh; border-radius: 0; object-fit: contain; background: black; }
+
+    .placeholder {
+        position: absolute;
+        inset: 0;
+        display: none;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 10px;
+        color: #d8d4c8;
+        background: #0c0c0c;
+        border-radius: 12px;
+        border: var(--border-w) solid var(--ink);
+        pointer-events: none;
+        text-align: center;
+        padding: 20px;
     }
+
+    .video-shell.no-input .placeholder { display: flex; }
+
+    .placeholder .icon { font-size: 34px; opacity: 0.7; }
+
+    .placeholder .title {
+        font-weight: 700;
+        font-size: 15px;
+        color: #f3f1ea;
+    }
+
+    .placeholder .sub {
+        font-size: 12px;
+        font-weight: 600;
+        opacity: 0.7;
+        max-width: 260px;
+    }
+
+    .badge-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-top: 10px;
+        font-size: 12px;
+        font-weight: 700;
+        color: var(--muted);
+        flex-wrap: wrap;
+        gap: 6px;
+    }
+
+    .badge {
+        background: var(--select-bg);
+        border-radius: 999px;
+        padding: 4px 10px;
+    }
+
+    .saved-tag {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        color: #2f7d4f;
+        opacity: 0;
+        transition: opacity 0.25s ease;
+    }
+
+    .saved-tag.show { opacity: 1; }
+
+    .status {
+        font-size: 13px;
+        font-weight: 600;
+        color: var(--muted);
+        text-align: center;
+    }
+
+    .status.error { color: #c0453a; }
 
     .hint {
         font-size: 12px;
-        opacity: 0.6;
-        margin-top: 6px;
+        font-weight: 600;
+        opacity: 0.55;
         text-align: center;
+        margin: -6px 0 0;
+    }
+
+    footer {
+        width: 100%;
+        max-width: 760px;
+        background: var(--blue);
+        border: var(--border-w) solid var(--ink);
+        border-radius: 12px;
+        box-shadow: var(--shadow-offset) var(--shadow-offset) 0 var(--ink);
+        transform: rotate(0.4deg);
+        padding: 14px 20px;
+        text-align: center;
+        font-weight: 700;
+        font-size: 13px;
+    }
+
+    @media (max-width: 480px) {
+        .field-row { grid-template-columns: 1fr; }
     }
 </style>
 </head>
 
 <body>
 
-<div class="panel">
-    <label>Camera</label>
-    <select id="cameraSelect"></select>
+<div class="wrap">
+    <div class="banner">
+        <h1>Camera & Mic Preview</h1>
+        <p>Full quality device testing. Nothing leaves your browser.</p>
+    </div>
 
-    <label style="margin-top:12px;">Microphone</label>
-    <select id="micSelect"></select>
+    <div class="card">
+        <h2>Devices</h2>
+        <div class="field-row">
+            <div class="field">
+                <label for="cameraSelect">Camera</label>
+                <select id="cameraSelect"></select>
+            </div>
+            <div class="field">
+                <label for="micSelect">Microphone</label>
+                <select id="micSelect"></select>
+            </div>
+        </div>
+        <div class="field">
+            <label for="resolutionSelect">Resolution</label>
+            <select id="resolutionSelect">
+                <option value="640x360">360p (640×360)</option>
+                <option value="1280x720">720p (1280×720)</option>
+                <option value="1920x1080" selected>1080p (1920×1080)</option>
+                <option value="2560x1440">1440p (2560×1440)</option>
+                <option value="3840x2160">4K (3840×2160)</option>
+            </select>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="video-shell no-input" id="videoShell">
+            <video id="video" autoplay playsinline muted></video>
+            <div class="placeholder" id="placeholder">
+                <div class="icon">📷</div>
+                <div class="title" id="placeholderTitle">Waiting for camera…</div>
+                <div class="sub" id="placeholderSub">Grant camera access to start the preview.</div>
+            </div>
+        </div>
+        <div class="badge-row">
+            <span class="badge" id="resBadge">—</span>
+            <span class="saved-tag" id="savedTag">✓ Settings saved</span>
+        </div>
+        <p class="status" id="status">Requesting camera & microphone access…</p>
+    </div>
+
+    <p class="hint">Double-click the video to enter or exit fullscreen. Your device and resolution choices are remembered on this browser.</p>
 </div>
 
-<video id="video" autoplay playsinline></video>
 <audio id="audio" autoplay></audio>
 
-<div class="hint">Tap video to enter fullscreen</div>
+<footer>© 2025 Grizz1e — preview.grizz1e.com</footer>
 
 <script>
-const cameraSelect = document.getElementById("cameraSelect");
-const micSelect = document.getElementById("micSelect");
-const videoElement = document.getElementById("video");
-const audioElement = document.getElementById("audio");
+(function () {
+    const cameraSelect = document.getElementById('cameraSelect');
+    const micSelect = document.getElementById('micSelect');
+    const resolutionSelect = document.getElementById('resolutionSelect');
+    const videoElement = document.getElementById('video');
+    const audioElement = document.getElementById('audio');
+    const statusEl = document.getElementById('status');
+    const resBadge = document.getElementById('resBadge');
+    const savedTag = document.getElementById('savedTag');
+    const videoShell = document.getElementById('videoShell');
+    const placeholderTitle = document.getElementById('placeholderTitle');
+    const placeholderSub = document.getElementById('placeholderSub');
 
-async function listDevices() {
-    const devices = await navigator.mediaDevices.enumerateDevices();
-    cameraSelect.innerHTML = "";
-    micSelect.innerHTML = "";
+    const STORAGE_KEYS = {
+        camera: 'grizzle_preview_camera_device',
+        mic: 'grizzle_preview_mic_device',
+        resolution: 'grizzle_preview_resolution'
+    };
 
-    devices.forEach(device => {
-        const option = document.createElement("option");
-        option.value = device.deviceId;
-        option.text = device.label || device.kind;
+    let currentStream = null;
+    let savedTagTimeout = null;
 
-        if (device.kind === "videoinput") cameraSelect.appendChild(option);
-        if (device.kind === "audioinput") micSelect.appendChild(option);
-    });
-}
+    function setStatus(text, isError) {
+        statusEl.textContent = text;
+        statusEl.classList.toggle('error', !!isError);
+    }
 
-async function startStream() {
-    const stream = await navigator.mediaDevices.getUserMedia({
-        video: {
-            deviceId: cameraSelect.value ? { exact: cameraSelect.value } : undefined,
-            width: { ideal: 1920 },
-            height: { ideal: 1080 },
-            frameRate: { ideal: 60 }
-        },
-        audio: {
-            deviceId: micSelect.value ? { exact: micSelect.value } : undefined,
-            sampleRate: { ideal: 48000 },
-            sampleSize: { ideal: 24 },
-            channelCount: { ideal: 2 },
-            echoCancellation: false,
-            noiseSuppression: false,
-            autoGainControl: false
+    function showPlaceholder(title, sub) {
+        placeholderTitle.textContent = title;
+        placeholderSub.textContent = sub;
+        videoShell.classList.add('no-input');
+    }
+
+    function hidePlaceholder() {
+        videoShell.classList.remove('no-input');
+    }
+
+    function flashSaved() {
+        savedTag.classList.add('show');
+        clearTimeout(savedTagTimeout);
+        savedTagTimeout = setTimeout(() => savedTag.classList.remove('show'), 1500);
+    }
+
+    function safeGet(key) {
+        try { return localStorage.getItem(key); } catch (e) { return null; }
+    }
+
+    function safeSet(key, value) {
+        try { localStorage.setItem(key, value); flashSaved(); } catch (e) { /* storage unavailable */ }
+    }
+
+    function parseResolution(value) {
+        const [w, h] = value.split('x').map(Number);
+        return { width: w, height: h };
+    }
+
+    function stopCurrentStream() {
+        if (currentStream) {
+            currentStream.getTracks().forEach(t => t.stop());
+            currentStream = null;
+        }
+    }
+
+    async function listDevices(preferredCameraId, preferredMicId) {
+        const devices = await navigator.mediaDevices.enumerateDevices();
+        cameraSelect.innerHTML = '';
+        micSelect.innerHTML = '';
+
+        let camCount = 0, micCount = 0;
+
+        devices.forEach(device => {
+            const option = document.createElement('option');
+            option.value = device.deviceId;
+
+            if (device.kind === 'videoinput') {
+                camCount += 1;
+                option.text = device.label || `Camera ${camCount}`;
+                cameraSelect.appendChild(option);
+            }
+            if (device.kind === 'audioinput') {
+                micCount += 1;
+                option.text = device.label || `Microphone ${micCount}`;
+                micSelect.appendChild(option);
+            }
+        });
+
+        if (preferredCameraId && [...cameraSelect.options].some(o => o.value === preferredCameraId)) {
+            cameraSelect.value = preferredCameraId;
+        }
+        if (preferredMicId && [...micSelect.options].some(o => o.value === preferredMicId)) {
+            micSelect.value = preferredMicId;
+        }
+    }
+
+    async function startStream() {
+        stopCurrentStream();
+
+        if (!cameraSelect.value) {
+            setStatus('No camera selected.');
+            showPlaceholder('No camera selected', 'Choose a camera above to start the preview.');
+            resBadge.textContent = '—';
+            return;
+        }
+
+        setStatus('Starting preview…');
+        hidePlaceholder();
+
+        const { width, height } = parseResolution(resolutionSelect.value);
+
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({
+                video: {
+                    deviceId: cameraSelect.value ? { exact: cameraSelect.value } : undefined,
+                    width: { ideal: width },
+                    height: { ideal: height },
+                    frameRate: { ideal: 60 }
+                },
+                audio: {
+                    deviceId: micSelect.value ? { exact: micSelect.value } : undefined,
+                    sampleRate: { ideal: 48000 },
+                    sampleSize: { ideal: 24 },
+                    channelCount: { ideal: 2 },
+                    echoCancellation: false,
+                    noiseSuppression: false,
+                    autoGainControl: false
+                }
+            });
+
+            currentStream = stream;
+            videoElement.srcObject = stream;
+
+            const audioStream = new MediaStream(stream.getAudioTracks());
+            audioElement.srcObject = audioStream;
+
+            const track = stream.getVideoTracks()[0];
+            const settings = track ? track.getSettings() : {};
+            resBadge.textContent = settings.width && settings.height
+                ? `${settings.width}×${settings.height}`
+                : resolutionSelect.value.replace('x', '×');
+
+            if (!track) {
+                showPlaceholder('No video signal', 'This device did not provide a video track.');
+            } else {
+                hidePlaceholder();
+                track.addEventListener('ended', () => {
+                    showPlaceholder('Signal lost', 'The camera was disconnected or stopped sending video.');
+                });
+                track.addEventListener('mute', () => {
+                    showPlaceholder('No signal', 'The camera is connected but isn\u2019t sending a picture. Check the source (e.g. HDMI input).');
+                });
+                track.addEventListener('unmute', hidePlaceholder);
+            }
+
+            setStatus('Live preview running.');
+
+            // Refresh device labels now that permission is granted, without resetting selection
+            await listDevices(cameraSelect.value, micSelect.value);
+        } catch (err) {
+            console.error(err);
+            setStatus('Could not start preview: ' + (err.message || err.name), true);
+            showPlaceholder('No camera input', 'Could not get a picture from this device. Try another camera or check the connection.');
+        }
+    }
+
+    function persistSelection() {
+        if (cameraSelect.value) safeSet(STORAGE_KEYS.camera, cameraSelect.value);
+        if (micSelect.value) safeSet(STORAGE_KEYS.mic, micSelect.value);
+        safeSet(STORAGE_KEYS.resolution, resolutionSelect.value);
+    }
+
+    cameraSelect.addEventListener('change', () => { persistSelection(); startStream(); });
+    micSelect.addEventListener('change', () => { persistSelection(); startStream(); });
+    resolutionSelect.addEventListener('change', () => { persistSelection(); startStream(); });
+
+    videoElement.addEventListener('dblclick', () => {
+        if (document.fullscreenElement) {
+            if (document.exitFullscreen) document.exitFullscreen();
+        } else if (videoElement.requestFullscreen) {
+            videoElement.requestFullscreen();
         }
     });
 
-    videoElement.srcObject = stream;
+    async function init() {
+        const savedCamera = safeGet(STORAGE_KEYS.camera);
+        const savedMic = safeGet(STORAGE_KEYS.mic);
+        const savedResolution = safeGet(STORAGE_KEYS.resolution);
 
-    // separate audio output
-    const audioStream = new MediaStream(stream.getAudioTracks());
-    audioElement.srcObject = audioStream;
-}
+        if (savedResolution && [...resolutionSelect.options].some(o => o.value === savedResolution)) {
+            resolutionSelect.value = savedResolution;
+        }
 
-cameraSelect.addEventListener("change", startStream);
-micSelect.addEventListener("change", startStream);
+        try {
+            // Ask for permission first so device labels are populated
+            const initial = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+            initial.getTracks().forEach(t => t.stop());
 
-videoElement.addEventListener("click", () => {
-    if (videoElement.requestFullscreen) videoElement.requestFullscreen();
-});
+            await listDevices(savedCamera, savedMic);
+            await startStream();
+            persistSelection();
+        } catch (err) {
+            console.error(err);
+            setStatus('Camera/microphone access denied or unavailable.', true);
+            showPlaceholder('No camera input', 'Camera access was denied or no device is available.');
+        }
+    }
 
-navigator.mediaDevices.getUserMedia({ video: true, audio: true })
-    .then(() => listDevices().then(startStream))
-    .catch(err => console.error(err));
+    init();
+})();
 </script>
 
 </body>
