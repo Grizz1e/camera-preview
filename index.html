@@ -310,7 +310,7 @@
 
     <div class="card">
         <div class="video-shell no-input" id="videoShell">
-            <video id="video" autoplay playsinline muted></video>
+            <video id="video" autoplay playsinline></video>
             <div class="placeholder" id="placeholder">
                 <div class="icon">📷</div>
                 <div class="title" id="placeholderTitle">Waiting for camera…</div>
@@ -327,8 +327,6 @@
     <p class="hint">Double-click the video to enter or exit fullscreen. The preview always runs at your camera's highest available resolution, and your device choices are remembered on this browser.</p>
 </div>
 
-<audio id="audio" autoplay></audio>
-
 <footer>© 2025 Grizz1e — preview.grizz1e.com</footer>
 
 <script>
@@ -336,7 +334,6 @@
     const cameraSelect = document.getElementById('cameraSelect');
     const micSelect = document.getElementById('micSelect');
     const videoElement = document.getElementById('video');
-    const audioElement = document.getElementById('audio');
     const statusEl = document.getElementById('status');
     const resBadge = document.getElementById('resBadge');
     const savedTag = document.getElementById('savedTag');
@@ -455,9 +452,22 @@
 
             currentStream = stream;
             videoElement.srcObject = stream;
+            videoElement.muted = false;
 
-            const audioStream = new MediaStream(stream.getAudioTracks());
-            audioElement.srcObject = audioStream;
+            let needsSoundGesture = false;
+            try {
+                await videoElement.play();
+            } catch (playErr) {
+                // Some browsers block unmuted autoplay without a direct user gesture.
+                needsSoundGesture = true;
+                videoElement.muted = true;
+                await videoElement.play().catch(() => {});
+                const enableSound = () => {
+                    videoElement.muted = false;
+                    videoElement.removeEventListener('click', enableSound);
+                };
+                videoElement.addEventListener('click', enableSound, { once: true });
+            }
 
             const track = stream.getVideoTracks()[0];
             const settings = track ? track.getSettings() : {};
@@ -478,7 +488,9 @@
                 track.addEventListener('unmute', hidePlaceholder);
             }
 
-            setStatus('Live preview running at the camera\u2019s maximum resolution.');
+            setStatus(needsSoundGesture
+                ? 'Live preview running. Click the video once to enable sound.'
+                : 'Live preview running at the camera\u2019s maximum resolution.');
 
             // Refresh device labels now that permission is granted, without resetting selection
             await listDevices(cameraSelect.value, micSelect.value);
