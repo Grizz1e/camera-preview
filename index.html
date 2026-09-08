@@ -309,11 +309,7 @@
         <div class="field">
             <label for="resolutionSelect">Resolution</label>
             <select id="resolutionSelect">
-                <option value="640x360">360p (640×360)</option>
-                <option value="1280x720">720p (1280×720)</option>
-                <option value="1920x1080" selected>1080p (1920×1080)</option>
-                <option value="2560x1440">1440p (2560×1440)</option>
-                <option value="3840x2160">4K (3840×2160)</option>
+                <option value="">Detecting camera capabilities…</option>
             </select>
         </div>
     </div>
@@ -360,6 +356,87 @@
         mic: 'grizzle_preview_mic_device',
         resolution: 'grizzle_preview_resolution'
     };
+
+    const STANDARD_RESOLUTIONS = [
+        { w: 7680, h: 4320, label: '8K (7680×4320)' },
+        { w: 3840, h: 2160, label: '4K (3840×2160)' },
+        { w: 2560, h: 1440, label: '1440p (2560×1440)' },
+        { w: 1920, h: 1080, label: '1080p (1920×1080)' },
+        { w: 1280, h: 720, label: '720p (1280×720)' },
+        { w: 854, h: 480, label: '480p (854×480)' },
+        { w: 640, h: 360, label: '360p (640×360)' },
+        { w: 426, h: 240, label: '240p (426×240)' }
+    ];
+
+    function buildResolutionList(maxW, maxH) {
+        const presets = STANDARD_RESOLUTIONS.filter(p => p.w <= maxW && p.h <= maxH);
+        const top = presets[0];
+        const list = [];
+        if (!top || top.w < maxW) {
+            list.push({ w: maxW, h: maxH, label: `${maxW}×${maxH} (max)` });
+        }
+        list.push(...presets);
+        if (list.length === 0) {
+            list.push({ w: maxW, h: maxH, label: `${maxW}×${maxH}` });
+        }
+        return list;
+    }
+
+    function populateResolutionOptions(maxW, maxH, preferredValue) {
+        const list = buildResolutionList(maxW, maxH);
+        resolutionSelect.innerHTML = '';
+        list.forEach(r => {
+            const opt = document.createElement('option');
+            opt.value = `${r.w}x${r.h}`;
+            opt.text = r.label;
+            resolutionSelect.appendChild(opt);
+        });
+        if (preferredValue && [...resolutionSelect.options].some(o => o.value === preferredValue)) {
+            resolutionSelect.value = preferredValue;
+        } else {
+            resolutionSelect.selectedIndex = 0;
+        }
+    }
+
+    async function probeMaxResolution(deviceId) {
+        try {
+            const probeStream = await navigator.mediaDevices.getUserMedia({
+                video: {
+                    deviceId: deviceId ? { exact: deviceId } : undefined,
+                    width: { ideal: 7680 },
+                    height: { ideal: 4320 }
+                }
+            });
+            const track = probeStream.getVideoTracks()[0];
+            let maxW, maxH;
+
+            if (track && track.getCapabilities) {
+                const caps = track.getCapabilities();
+                if (caps.width && caps.height) {
+                    maxW = caps.width.max;
+                    maxH = caps.height.max;
+                }
+            }
+            if (!maxW || !maxH) {
+                const settings = track ? track.getSettings() : {};
+                maxW = settings.width || 1920;
+                maxH = settings.height || 1080;
+            }
+
+            probeStream.getTracks().forEach(t => t.stop());
+            return { maxW, maxH };
+        } catch (e) {
+            console.warn('Resolution probe failed, defaulting to 1080p', e);
+            return { maxW: 1920, maxH: 1080 };
+        }
+    }
+
+    async function refreshResolutionOptions() {
+        setStatus('Checking camera capabilities…');
+        const { maxW, maxH } = await probeMaxResolution(cameraSelect.value);
+        const savedResolution = safeGet(STORAGE_KEYS.resolution);
+        populateResolutionOptions(maxW, maxH, savedResolution);
+    }
 
     let currentStream = null;
     let savedTagTimeout = null;
@@ -512,7 +589,12 @@
         safeSet(STORAGE_KEYS.resolution, resolutionSelect.value);
     }
 
-    cameraSelect.addEventListener('change', () => { persistSelection(); startStream(); });
+    cameraSelect.addEventListener('change', async () => {
+        persistSelection();
+        await refreshResolutionOptions();
+        persistSelection();
+        await startStream();
+    });
     micSelect.addEventListener('change', () => { persistSelection(); startStream(); });
     resolutionSelect.addEventListener('change', () => { persistSelection(); startStream(); });
 
@@ -539,6 +621,7 @@
             initial.getTracks().forEach(t => t.stop());
 
             await listDevices(savedCamera, savedMic);
+            await refreshResolutionOptions();
             await startStream();
             persistSelection();
         } catch (err) {
