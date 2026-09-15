@@ -179,12 +179,17 @@
         background: #0c0c0c;
         border-radius: 12px;
         border: var(--border-w) solid var(--ink);
-        box-shadow: var(--shadow-offset) var(--shadow-offset) 0 var(--ink);
         cursor: pointer;
         display: block;
     }
 
     video:fullscreen { width: 100vw; height: 100vh; border-radius: 0; object-fit: contain; background: black; }
+
+    video, video:focus, video:focus-visible, video:fullscreen:focus, video:fullscreen:focus-visible {
+        outline: none;
+    }
+
+    video::-webkit-media-controls { display: none !important; }
 
     .placeholder {
         position: absolute;
@@ -310,7 +315,7 @@
 
     <div class="card">
         <div class="video-shell no-input" id="videoShell">
-            <video id="video" autoplay playsinline></video>
+            <video id="video" autoplay playsinline tabindex="-1"></video>
             <div class="placeholder" id="placeholder">
                 <div class="icon">📷</div>
                 <div class="title" id="placeholderTitle">Waiting for camera…</div>
@@ -471,9 +476,11 @@
 
             const track = stream.getVideoTracks()[0];
             const settings = track ? track.getSettings() : {};
-            resBadge.textContent = settings.width && settings.height
+            const resPart = settings.width && settings.height
                 ? `${settings.width}×${settings.height}`
                 : '—';
+            const fpsPart = settings.frameRate ? ` @ ${Math.round(settings.frameRate * 10) / 10}fps` : '';
+            resBadge.textContent = resPart + fpsPart;
 
             if (!track) {
                 showPlaceholder('No video signal', 'This device did not provide a video track.');
