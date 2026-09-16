@@ -421,6 +421,76 @@
         }
     }
 
+    // Descending candidate resolutions. Capture cards (HDMI dongles etc.) often use
+    // generic UVC drivers that hang instead of clamping when asked for a resolution
+    // far beyond what they support, so we step down through realistic options rather
+    // than asking for one extreme (e.g. 8K) ideal value.
+    const RESOLUTION_LADDER = [
+        { width: 3840, height: 2160 },
+        { width: 2560, height: 1440 },
+        { width: 1920, height: 1080 },
+        { width: 1280, height: 720 },
+        { width: 720, height: 480 }
+    ];
+
+    function withTimeout(promise, ms) {
+        return Promise.race([
+            promise,
+            new Promise((_, reject) => setTimeout(() => reject(new Error('Timed out waiting for device')), ms))
+        ]);
+    }
+
+    function buildConstraints(width, height) {
+        return {
+            video: {
+                deviceId: cameraSelect.value ? { exact: cameraSelect.value } : undefined,
+                ...(width && height ? {
+                    width: { ideal: width },
+                    height: { ideal: height }
+                } : {}),
+                frameRate: { ideal: 60 }
+            },
+            audio: {
+                deviceId: micSelect.value ? { exact: micSelect.value } : undefined,
+                sampleRate: { ideal: 48000 },
+                sampleSize: { ideal: 24 },
+                channelCount: { ideal: 2 },
+                echoCancellation: false,
+                noiseSuppression: false,
+                autoGainControl: false
+            }
+        };
+    }
+
+    async function acquireStream() {
+        let lastErr;
+        for (const candidate of RESOLUTION_LADDER) {
+            try {
+                setStatus(`Trying ${candidate.width}×${candidate.height}…`);
+                const stream = await withTimeout(
+                    navigator.mediaDevices.getUserMedia(buildConstraints(candidate.width, candidate.height)),
+                    6000
+                );
+                return stream;
+            } catch (err) {
+                lastErr = err;
+                // Give the device a beat to release before the next attempt —
+                // some capture cards need this or the next open also times out.
+                await new Promise(r => setTimeout(r, 200));
+            }
+        }
+        // Last resort: no resolution constraint at all, just take whatever the device defaults to.
+        try {
+            setStatus('Trying default resolution…');
+            return await withTimeout(
+                navigator.mediaDevices.getUserMedia(buildConstraints(null, null)),
+                6000
+            );
+        } catch (err) {
+            throw lastErr || err;
+        }
+    }
+
     async function startStream() {
         stopCurrentStream();
 
@@ -435,25 +505,7 @@
         hidePlaceholder();
 
         try {
-            // Request an intentionally huge ideal resolution so the browser grants
-            // whatever the camera's actual native maximum is.
-            const stream = await navigator.mediaDevices.getUserMedia({
-                video: {
-                    deviceId: cameraSelect.value ? { exact: cameraSelect.value } : undefined,
-                    width: { ideal: 7680 },
-                    height: { ideal: 4320 },
-                    frameRate: { ideal: 60 }
-                },
-                audio: {
-                    deviceId: micSelect.value ? { exact: micSelect.value } : undefined,
-                    sampleRate: { ideal: 48000 },
-                    sampleSize: { ideal: 24 },
-                    channelCount: { ideal: 2 },
-                    echoCancellation: false,
-                    noiseSuppression: false,
-                    autoGainControl: false
-                }
-            });
+            const stream = await acquireStream();
 
             currentStream = stream;
             videoElement.srcObject = stream;
