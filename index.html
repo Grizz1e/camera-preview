@@ -185,6 +185,8 @@
 
     video:fullscreen { width: 100vw; height: 100vh; border-radius: 0; object-fit: contain; background: black; }
 
+    video.cursor-hidden { cursor: none; }
+
     video, video:focus, video:focus-visible, video:fullscreen:focus, video:fullscreen:focus-visible {
         outline: none;
     }
@@ -575,6 +577,31 @@
             videoElement.requestFullscreen();
         }
     });
+
+    // Auto-hide the mouse cursor after a few seconds of inactivity while fullscreen.
+    let cursorHideTimeout = null;
+
+    function resetCursorHideTimer() {
+        videoElement.classList.remove('cursor-hidden');
+        clearTimeout(cursorHideTimeout);
+        if (document.fullscreenElement === videoElement) {
+            cursorHideTimeout = setTimeout(() => {
+                videoElement.classList.add('cursor-hidden');
+            }, 2500);
+        }
+    }
+
+    document.addEventListener('fullscreenchange', () => {
+        if (document.fullscreenElement === videoElement) {
+            resetCursorHideTimer();
+        } else {
+            clearTimeout(cursorHideTimeout);
+            videoElement.classList.remove('cursor-hidden');
+        }
+    });
+
+    videoElement.addEventListener('mousemove', resetCursorHideTimer);
+    videoElement.addEventListener('mousedown', resetCursorHideTimer);
 
     async function init() {
         const savedCamera = safeGet(STORAGE_KEYS.camera);
