@@ -107,14 +107,14 @@
   #top { position: fixed; top: 12px; left: 12px; display: flex; gap: 6px; align-items: center; flex-wrap: wrap;
     max-width: 40vw; pointer-events: none; }
   #devName, #devInfo { background: rgba(246,243,236,.85); border: 2px solid var(--ink); border-radius: 9px;
-    box-shadow: 2px 2px 0 var(--ink); backdrop-filter: blur(6px); }
+    box-shadow: 2px 2px 0 var(--ink); }
   #devName { padding: 3px 10px; font-size: 13px; font-weight: 800; }
   #devInfo { padding: 3px 9px; font-size: 12px; }
   #devName:empty, #devInfo:empty { display: none; }
 
   #bar { position: fixed; left: 50%; bottom: 14px; transform: translateX(-50%); display: flex; gap: 6px;
     align-items: center; justify-content: center; max-width: calc(100vw - 24px); padding: 5px 6px;
-    background: rgba(246,243,236,.86); backdrop-filter: blur(8px); border: 2px solid var(--ink);
+    background: rgba(246,243,236,.86); border: 2px solid var(--ink);
     border-radius: 12px; box-shadow: 3px 3px 0 var(--ink); }
   body.idle #bar { transform: translate(-50%, 10px); }
 
@@ -132,7 +132,7 @@
 
   /* Settings: a small popover above the control bar, only as tall as its content */
   #panel { position: fixed; right: 14px; bottom: 64px; width: min(250px, calc(100vw - 28px)); padding: 8px 12px 12px;
-    background: rgba(246,243,236,.94); backdrop-filter: blur(10px); border: 2px solid var(--ink);
+    background: rgba(246,243,236,.94); border: 2px solid var(--ink);
     border-radius: 12px; box-shadow: 3px 3px 0 var(--ink); z-index: 6; user-select: text;
     opacity: 0; visibility: hidden; pointer-events: none; transform: translateY(8px);
     transition: opacity .18s, transform .18s, visibility .18s; }
@@ -186,6 +186,8 @@
     <option value="3840x2160x30">4K, 30 fps</option>
     <option value="1920x1080x30">1080p, 30 fps</option>
   </select>
+  <label for="dly">Audio delay <span id="dlyVal">0 ms</span></label>
+  <input id="dly" type="range" min="0" max="500" step="5" value="0" style="width:100%;accent-color:var(--ink)">
   <button class="btn" id="bAuto" title="Forget saved devices and detect the capture card again">Auto-detect</button>
 </aside>
 <div id="toast"></div>
@@ -202,13 +204,13 @@
     set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} }
   };
   const prefs = Object.assign(
-    { vId: null, vLabel: null, aId: null, aLabel: null, res: '1920x1080x60', vol: 1 },
+    { vId: null, vLabel: null, aId: null, aLabel: null, res: '1920x1080x60', vol: 1, delay: 0 },
     store.get('ps5-prefs') || {}
   );
   const savePrefs = () => store.set('ps5-prefs', prefs);
   rsel.value = prefs.res;
   if (rsel.value !== prefs.res) rsel.value = '1920x1080x60';
-  video.volume = $('vol').value = prefs.vol;
+  $('vol').value = prefs.vol;
 
   // ---------- State ----------
   const S = {
@@ -217,6 +219,10 @@
     wasConnected: false, // true once a feed has played in this session
     audioIssue: '',
     needSound: false,
+    muted: false,
+    audioTrack: null,
+    noSignal: false,
+    primed: false,
     permDenied: false,
     sig: ''
   };
@@ -259,7 +265,7 @@
   async function getDevices() {
     let devs = await navigator.mediaDevices.enumerateDevices();
     const needLabels = devs.some(d => (d.kind === 'videoinput' || d.kind === 'audioinput') && !d.label);
-    if (needLabels) {
+    if (needLabels && !S.primed) {
       // Device names are hidden until the page has permission.
       try {
         const t = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
@@ -274,6 +280,7 @@
       }
       devs = await navigator.mediaDevices.enumerateDevices();
     }
+    S.primed = true;
     S.permDenied = false;
     return devs;
   }
@@ -291,6 +298,7 @@
 
   function updateBanner() {
     const parts = [];
+    if (S.noSignal) parts.push('No video signal. Check that the PS5 is on and the HDMI cable is connected.');
     if (S.audioIssue) parts.push(S.audioIssue);
     if (S.needSound) parts.push('Click anywhere to turn on sound.');
     banner.textContent = parts.join('  ');
@@ -300,7 +308,8 @@
   // ---------- Connecting ----------
   function stopStream() {
     if (S.stream) S.stream.getTracks().forEach(t => t.stop());
-    S.stream = null; S.cur = null;
+    S.stream = null; S.cur = null; S.audioTrack = null;
+    detachAudio(); stopWatchdog();
     video.srcObject = null;
     $('devName').textContent = ''; $('devInfo').textContent = '';
   }
@@ -315,14 +324,9 @@
   }
 
   async function playVideo() {
-    video.muted = false;
-    try { await video.play(); S.needSound = false; }
-    catch {
-      // Browsers can block sound before the first click; start muted and ask for a click.
-      video.muted = true;
-      try { await video.play(); } catch {}
-      S.needSound = true;
-    }
+    video.muted = true; // sound is played through Web Audio so it can be delayed to match the picture
+    try { await video.play(); } catch {}
+    attachAudio();
     syncMuteLabel();
   }
 
@@ -381,7 +385,7 @@
     let vStream;
     try {
       vStream = await navigator.mediaDevices.getUserMedia({
-        video: { deviceId: { exact: v.device.deviceId }, width: { ideal: w }, height: { ideal: h }, frameRate: { ideal: fps } },
+        video: { deviceId: { exact: v.device.deviceId }, width: { ideal: w }, height: { ideal: h }, frameRate: { ideal: fps }, resizeMode: { ideal: 'none' } },
         audio: false
       });
     } catch (e) {
@@ -395,7 +399,7 @@
         const aStream = await navigator.mediaDevices.getUserMedia({
           video: false,
           audio: { deviceId: { exact: a.device.deviceId }, echoCancellation: false, noiseSuppression: false,
-                   autoGainControl: false, channelCount: { ideal: 2 }, sampleRate: { ideal: 48000 } }
+                   autoGainControl: false, channelCount: { ideal: 2 }, sampleRate: { ideal: 48000 }, latency: { ideal: 0 } }
         });
         aTrack = aStream.getAudioTracks()[0];
       } catch {
@@ -404,12 +408,20 @@
     }
 
     // Merge video and audio into one stream
-    const tracks = [...vStream.getVideoTracks(), ...(aTrack ? [aTrack] : [])];
-    S.stream = new MediaStream(tracks);
-    S.cur = { vid: v.device.deviceId, aid: aTrack ? wantAid : null };
-    tracks.forEach(t => t.addEventListener('ended', () => onLost(t)));
-    video.srcObject = S.stream;
-    await playVideo();
+    try {
+      const tracks = [...vStream.getVideoTracks(), ...(aTrack ? [aTrack] : [])];
+      S.stream = new MediaStream(tracks); // one merged capture session
+      S.audioTrack = aTrack;
+      S.cur = { vid: v.device.deviceId, aid: aTrack ? wantAid : null };
+      tracks.forEach(t => t.addEventListener('ended', () => onLost(t)));
+      video.srcObject = new MediaStream(vStream.getVideoTracks()); // picture shown with no extra buffering
+      await playVideo();
+      startWatchdog();
+    } catch (e) {
+      vStream.getTracks().forEach(t => t.stop()); if (aTrack) aTrack.stop();
+      S.stream = null; S.cur = null; S.audioTrack = null;
+      throw e;
+    }
 
     prefs.vId = v.device.deviceId; prefs.vLabel = v.device.label;
     if (a.device && aTrack) { prefs.aId = a.device.deviceId; prefs.aLabel = a.device.label; }
@@ -509,7 +521,7 @@
   // First click unlocks sound if the browser blocked it
   document.addEventListener('pointerdown', e => {
     if (panelOpen && !e.target.closest('#panel, #bSettings')) setPanel(false);
-    if (S.needSound) { video.muted = false; S.needSound = false; syncMuteLabel(); updateBanner(); }
+    unlockAudio();
   }, true);
 
   // ---------- Auto-hide controls and cursor ----------
@@ -532,8 +544,8 @@
     const el = $('toast'); el.textContent = t; el.classList.add('show');
     clearTimeout(toast.t); toast.t = setTimeout(() => el.classList.remove('show'), 1600);
   }
-  function syncMuteLabel() { $('bMute').innerHTML = video.muted ? ICON.muted : ICON.sound; $('bMute').title = video.muted ? 'Unmute (M)' : 'Mute (M)'; }
-  function toggleMute() { video.muted = !video.muted; S.needSound = false; syncMuteLabel(); updateBanner(); }
+  function syncMuteLabel() { $('bMute').innerHTML = S.muted ? ICON.muted : ICON.sound; $('bMute').title = S.muted ? 'Unmute (M)' : 'Mute (M)'; }
+  function toggleMute() { unlockAudio(); S.muted = !S.muted; applyVolume(); syncMuteLabel(); }
   function toggleFit() {
     video.classList.toggle('fill');
     const f = video.classList.contains('fill');
@@ -544,8 +556,9 @@
   $('bFit').onclick = toggleFit;
   $('bFull').onclick = toggleFullscreen;
   $('vol').oninput = e => {
-    video.volume = +e.target.value; prefs.vol = video.volume; savePrefs();
-    if (video.muted && video.volume > 0) { video.muted = false; S.needSound = false; syncMuteLabel(); updateBanner(); }
+    prefs.vol = +e.target.value; savePrefs();
+    if (S.muted && prefs.vol > 0) { S.muted = false; syncMuteLabel(); }
+    applyVolume();
   };
   document.addEventListener('keydown', e => {
     if (/SELECT|INPUT/.test(e.target.tagName) || e.ctrlKey || e.metaKey || e.altKey) return;
@@ -553,9 +566,67 @@
     if (k === 'f') toggleFullscreen();
     else if (k === 'm') toggleMute();
     else if (k === 'z') toggleFit();
+    else if (k === '[' || k === ']') { setDelay(prefs.delay + (k === ']' ? 10 : -10)); toast('Audio delay ' + prefs.delay + ' ms'); }
     else if (k === 's') setPanel(!panelOpen);
     else if (k === 'escape') setPanel(false);
   });
+
+  // ---------- Audio via Web Audio: one path for volume and lip-sync delay ----------
+  const A = { ctx: null, gain: null, delay: null, src: null };
+  function ensureAudio() {
+    if (A.ctx) return A.ctx;
+    const AC = window.AudioContext || window.webkitAudioContext;
+    A.ctx = new AC({ latencyHint: 'interactive' });
+    A.delay = A.ctx.createDelay(1);
+    A.gain = A.ctx.createGain();
+    A.delay.connect(A.gain); A.gain.connect(A.ctx.destination);
+    A.ctx.onstatechange = () => { S.needSound = !!S.audioTrack && A.ctx.state !== 'running'; updateBanner(); };
+    applyVolume(); applyDelay();
+    return A.ctx;
+  }
+  function applyVolume() { if (A.gain) A.gain.gain.setTargetAtTime(S.muted ? 0 : prefs.vol, A.ctx.currentTime, 0.015); }
+  function applyDelay() { if (A.delay) A.delay.delayTime.setTargetAtTime(prefs.delay / 1000, A.ctx.currentTime, 0.02); }
+  function attachAudio() {
+    detachAudio();
+    if (!S.audioTrack) { S.needSound = false; updateBanner(); return; }
+    const ctx = ensureAudio();
+    A.src = ctx.createMediaStreamSource(new MediaStream([S.audioTrack]));
+    A.src.connect(A.delay);
+    ctx.resume().catch(() => {});
+    S.needSound = ctx.state !== 'running'; updateBanner();
+  }
+  function detachAudio() { if (A.src) { try { A.src.disconnect(); } catch {} A.src = null; } }
+  function unlockAudio() { if (A.ctx && A.ctx.state !== 'running') A.ctx.resume().catch(() => {}); }
+  document.addEventListener('keydown', unlockAudio, true);
+  function setDelay(ms) {
+    prefs.delay = Math.max(0, Math.min(500, Math.round(ms))); savePrefs(); applyDelay();
+    $('dly').value = prefs.delay; $('dlyVal').textContent = prefs.delay + ' ms';
+  }
+  $('dly').oninput = e => setDelay(+e.target.value);
+
+  // ---------- Frame watchdog: warns when the card stops delivering pictures ----------
+  let lastFrame = 0, wdTimer = null, rvfcId = 0;
+  function startWatchdog() {
+    stopWatchdog();
+    if (!video.requestVideoFrameCallback) return;
+    lastFrame = performance.now();
+    const loop = () => { lastFrame = performance.now(); rvfcId = video.requestVideoFrameCallback(loop); };
+    rvfcId = video.requestVideoFrameCallback(loop);
+    wdTimer = setInterval(() => {
+      const dead = !document.hidden && performance.now() - lastFrame > 4000;
+      if (dead !== S.noSignal) { S.noSignal = dead; updateBanner(); }
+    }, 1000);
+  }
+  function stopWatchdog() {
+    clearInterval(wdTimer);
+    if (rvfcId && video.cancelVideoFrameCallback) video.cancelVideoFrameCallback(rvfcId);
+    rvfcId = 0; S.noSignal = false;
+  }
+  document.addEventListener('visibilitychange', () => { lastFrame = performance.now(); });
+
+  // Release keyboard focus after using a control so shortcuts keep working
+  [vsel, asel, rsel, $('vol'), $('dly')].forEach(el => el.addEventListener('change', () => el.blur()));
+  setDelay(prefs.delay);
 
   const svg = d => `<svg viewBox="0 0 24 24" aria-hidden="true">${d}</svg>`;
   const ICON = {
